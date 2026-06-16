@@ -1,0 +1,9 @@
+[servers]
+[[servers.hosts]]
+name = "web-01"
+host = "192.168.1.10"
+ssh_user = "deploy"
+
+[[servers.directories]]
+path = "/var/www/myapp"
+adapter = "capistrano"
