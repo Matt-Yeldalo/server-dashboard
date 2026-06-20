@@ -14,6 +14,17 @@ impl RemoteExecuter for MockExecuter {
         })
     }
 
+    fn file_content_list(&self) -> Vec<FileContent> {
+        vec![
+            self.uptime(),
+            self.storage(),
+            self.revision(),
+            self.git_log(),
+            self.git_branch(),
+            self.status(),
+        ]
+    }
+
     fn get_file_content(&self, file_path: &str) -> FileContent {
         let full_path = format!("{}{}", self.root(), file_path);
 
