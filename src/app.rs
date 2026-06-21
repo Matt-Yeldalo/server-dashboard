@@ -1,5 +1,5 @@
 use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::widgets::Borders;
+use ratatui::widgets::{Borders, Padding, Wrap};
 pub enum AppState {
     Dashboard,
     ServerDetail,
@@ -81,7 +81,8 @@ impl App {
             .split(content);
 
         let mut index = 0;
-        let file_content_list : Vec<FileContent> = self.display_info.as_ref().unwrap().file_content_list();
+        let file_content_list: Vec<FileContent> =
+            self.display_info.as_ref().unwrap().file_content_list();
 
         for row in row_areas.iter() {
             let col_constraints = vec![Constraint::Ratio(1, columns as u32); columns];
@@ -95,18 +96,26 @@ impl App {
                     break;
                 }
 
-                frame.render_widget(
-                    Block::default()
-                        // .title(format!("Item {}", index + 1))
-                        .title(file_content_list[index].label.to_string())
-                        .title_alignment(ratatui::layout::Alignment::Center)
-                        .borders(Borders::ALL),
-                    *col,
-                );
+                let block = Block::default()
+                    .title(file_content_list[index].label.to_string())
+                    .title_alignment(ratatui::layout::Alignment::Center)
+                    .borders(Borders::ALL)
+                    .padding(Padding {
+                        top: 1,
+                        bottom: 1,
+                        left: 2,
+                        right: 2,
+                    });
+                let paragraph = Paragraph::new(file_content_list[index].content.clone())
+                    .alignment(ratatui::layout::Alignment::Left)
+                    .wrap(Wrap { trim: true })
+                    .block(block);
+
+                frame.render_widget(paragraph, *col);
 
                 index += 1;
             }
-        };
+        }
     }
 }
 
