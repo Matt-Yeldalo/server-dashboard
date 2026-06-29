@@ -1,32 +1,55 @@
-include!("remote_executer_trait.rs");
+include!("remote_executer.rs");
 
-struct MockExecuter {}
+struct MockExecuter {
+    // root_path: String,
+}
 
 impl RemoteExecuter for MockExecuter {
-    fn retrieve_info(&self) -> Result<DisplayInfo, String> {
+    fn server_list(&self) -> Vec<String> {
+        vec!["web-01/".to_string(), "web-02/".to_string()]
+    }
+
+    fn root(&self) -> String {
+        "./fixtures/".to_string()
+    }
+
+    fn retrieve_info(&self, server_index: usize) -> Result<DisplayInfo, String> {
         Ok(DisplayInfo {
-            uptime: self.uptime(),
-            storage: self.storage(),
-            revision: self.revision(),
-            git_log: self.git_log(),
-            git_branch: self.git_branch(),
-            status: self.status(),
+            uptime: self.uptime(server_index),
+            storage: self.storage(server_index),
+            revision: self.revision(server_index),
+            git_log: self.git_log(server_index),
+            git_branch: self.git_branch(server_index),
+            status: self.status(server_index),
         })
     }
 
-    fn file_content_list(&self) -> Vec<FileContent> {
+    fn file_content_list(&self, server_index: usize) -> Vec<FileContent> {
         vec![
-            self.uptime(),
-            self.storage(),
-            self.revision(),
-            self.git_log(),
-            self.git_branch(),
-            self.status(),
+            self.uptime(server_index),
+            self.storage(server_index),
+            self.revision(server_index),
+            self.git_log(server_index),
+            self.git_branch(server_index),
+            self.status(server_index),
         ]
     }
 
-    fn get_file_content(&self, file_path: &str) -> FileContent {
-        let full_path = format!("{}{}", self.root(), file_path);
+    fn get_file_content(&self, file_path: &str, server_index: usize) -> FileContent {
+        let root_server_check = format!("{}{}", self.root(), self.server_list()[server_index]);
+        if !std::path::Path::new(&root_server_check).exists() {
+            return FileContent {
+                label: file_path.to_string(),
+                content: format!("Server not found: {}", root_server_check),
+            };
+        }
+
+        let full_path = format!(
+            "{}{}{}",
+            self.root(),
+            self.server_list()[server_index],
+            file_path
+        );
 
         if !std::path::Path::new(&full_path).exists() {
             return FileContent {
@@ -58,32 +81,28 @@ impl RemoteExecuter for MockExecuter {
         }
     }
 
-    fn root(&self) -> String {
-        "./fixtures/web-01/".to_string()
+    fn revision(&self, server_index: usize) -> FileContent {
+        self.get_file_content("REVISION", server_index)
     }
 
-    fn revision(&self) -> FileContent {
-        self.get_file_content("REVISION")
+    fn git_log(&self, server_index: usize) -> FileContent {
+        self.get_file_content("git-log", server_index)
     }
 
-    fn git_log(&self) -> FileContent {
-        self.get_file_content("git-log")
+    fn git_branch(&self, server_index: usize) -> FileContent {
+        self.get_file_content("git-branch", server_index)
     }
 
-    fn git_branch(&self) -> FileContent {
-        self.get_file_content("git-branch")
+    fn status(&self, server_index: usize) -> FileContent {
+        self.get_file_content("status", server_index)
     }
 
-    fn status(&self) -> FileContent {
-        self.get_file_content("status")
+    fn storage(&self, server_index: usize) -> FileContent {
+        self.get_file_content("df", server_index)
     }
 
-    fn storage(&self) -> FileContent {
-        self.get_file_content("df")
-    }
-
-    fn uptime(&self) -> FileContent {
-        self.get_file_content("uptime")
+    fn uptime(&self, server_index: usize) -> FileContent {
+        self.get_file_content("uptime", server_index)
     }
 }
 
