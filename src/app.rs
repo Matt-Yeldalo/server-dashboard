@@ -1,6 +1,20 @@
 use ratatui::layout::{Constraint, Direction, Layout};
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Borders, Padding, Row, Table, Wrap};
+
+fn friendly_label(raw: &str) -> &str {
+    match raw {
+        "uptime" => "Uptime",
+        "df" => "Storage",
+        "REVISION" => "Revision",
+        "git-log" => "Recent Commit",
+        "git-branch" => "Branch",
+        "status" => "Status",
+        "releases" => "Releases",
+        other => other,
+    }
+}
+
 pub enum AppState {
     Dashboard,
     ServerDetail,
@@ -33,7 +47,7 @@ impl App {
 
     fn draw(&mut self, frame: &mut Frame) {
         // frame.render_widget(self, frame.area());
-        self.ui(frame, 6);
+        self.ui(frame);
     }
 
     fn handle_events(&mut self) -> std::io::Result<()> {
@@ -68,14 +82,29 @@ impl App {
         Ok(())
     }
 
-    fn ui(&mut self, frame: &mut Frame, item_count: usize) {
+    fn ui(&mut self, frame: &mut Frame) {
         match self.state {
-            AppState::Dashboard => self.draw_dashboard(frame, item_count),
-            AppState::ServerDetail => self.draw_server(frame, item_count),
+            AppState::Dashboard => self.draw_dashboard(frame),
+            AppState::ServerDetail => self.draw_server(frame),
         }
     }
 
-    fn draw_server(&mut self, frame: &mut Frame, item_count: usize) {
+    fn draw_server(&mut self, frame: &mut Frame) {
+        let file_content_list: Vec<FileContent> = self
+            .executer
+            .as_ref()
+            .unwrap()
+            .file_content_list(self.selected_server_index);
+        let item_count = file_content_list.len();
+
+        let server_name = self
+            .executer
+            .as_ref()
+            .unwrap()
+            .server_list()[self.selected_server_index]
+            .trim_end_matches('/')
+            .to_string();
+
         let [toolbar, content, footer] = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -86,12 +115,15 @@ impl App {
             .areas(frame.area());
 
         frame.render_widget(
-            Block::default().title("Toolbar").borders(Borders::ALL),
+            Block::default()
+                .title(server_name)
+                .title_alignment(ratatui::layout::Alignment::Center)
+                .borders(Borders::ALL),
             toolbar,
         );
 
         frame.render_widget(
-            Block::default().title("Footer").borders(Borders::ALL),
+            Paragraph::new(" Esc: back to dashboard  |  q: quit"),
             footer,
         );
 
@@ -105,11 +137,6 @@ impl App {
             .split(content);
 
         let mut index = 0;
-        let file_content_list: Vec<FileContent> = self
-            .executer
-            .as_ref()
-            .unwrap()
-            .file_content_list(self.selected_server_index);
 
         for row in row_areas.iter() {
             let col_constraints = vec![Constraint::Ratio(1, columns as u32); columns];
@@ -124,7 +151,7 @@ impl App {
                 }
 
                 let block = Block::default()
-                    .title(file_content_list[index].label.to_string())
+                    .title(friendly_label(&file_content_list[index].label))
                     .title_alignment(ratatui::layout::Alignment::Center)
                     .borders(Borders::ALL)
                     .padding(Padding {
@@ -145,7 +172,7 @@ impl App {
         }
     }
 
-    fn draw_dashboard(&mut self, frame: &mut Frame, _item_count: usize) {
+    fn draw_dashboard(&mut self, frame: &mut Frame) {
         // show list of servers in a table
         let block = Block::default()
             .title("Servers")
@@ -158,46 +185,23 @@ impl App {
                 right: 2,
             });
         let server_list = self.executer.as_ref().unwrap().server_list();
-        let server_length = server_list.len();
-        let mut rows = Vec::new();
-        match server_length {
-            0 => {
-                rows.push(Row::new(vec!["No servers found"]));
-            }
-            1 => {
-                rows.push(Row::new(vec![server_list[0].as_str()]));
-            }
-            _ => {
-                for server in server_list {
-                    rows.push(Row::new(vec![server]).style(
-                        if self.selected_server_index == rows.len() {
-                            Style::default().add_modifier(Modifier::REVERSED)
-                        } else {
-                            Style::default()
-                        },
-                    ));
-                }
+        let mut rows: Vec<Row> = Vec::new();
+        if server_list.is_empty() {
+            rows.push(Row::new(vec!["No servers found"]));
+        } else {
+            for server in server_list {
+                rows.push(Row::new(vec![server]).style(
+                    if self.selected_server_index == rows.len() {
+                        Style::default().add_modifier(Modifier::REVERSED)
+                    } else {
+                        Style::default()
+                    },
+                ));
             }
         }
-        // for server in server_list {
-        //     if server_list.len() > 1 {
-        //         rows.push(Row::new(vec![server]).style(
-        //             if self.selected_server_index == rows.len() {
-        //                 Style::default().add_modifier(Modifier::REVERSED)
-        //             } else {
-        //                 Style::default()
-        //             },
-        //         ));
-        //     } else {
-        //         rows.push(Row::new(vec![server]));
-        //     }
-        // }
-        // let rows = [Row::new(self.executer.as_ref().unwrap().server_list())];
-        let widths = [Constraint::Percentage(100)];
-        let table = Table::new(rows, widths)
+        let table = Table::new(rows, [Constraint::Percentage(100)])
             .block(block)
-            .highlight_symbol(">> ")
-            .widths(&[Constraint::Percentage(100)]);
+            .highlight_symbol(">> ");
         frame.render_widget(table, frame.area());
     }
 }

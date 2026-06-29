@@ -6,6 +6,7 @@ trait RemoteExecuter {
     fn git_log(&self, server_index: usize) -> FileContent;
     fn git_branch(&self, server_index: usize) -> FileContent;
     fn status(&self, server_index: usize) -> FileContent;
+    fn releases(&self, server_index: usize) -> FileContent;
     fn retrieve_info(&self, server_index: usize) -> Result<DisplayInfo, String>;
     fn get_file_content(&self, file_path: &str, server_index: usize) -> FileContent;
     fn file_content_list(&self, server_index: usize) -> Vec<FileContent>;

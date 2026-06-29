@@ -6,7 +6,7 @@ struct MockExecuter {
 
 impl RemoteExecuter for MockExecuter {
     fn server_list(&self) -> Vec<String> {
-        vec!["web-01/".to_string(), "web-02/".to_string()]
+        vec!["web-01/".to_string(), "web-02/".to_string(), "web-03/".to_string()]
     }
 
     fn root(&self) -> String {
@@ -21,6 +21,7 @@ impl RemoteExecuter for MockExecuter {
             git_log: self.git_log(server_index),
             git_branch: self.git_branch(server_index),
             status: self.status(server_index),
+            releases: self.releases(server_index),
         })
     }
 
@@ -32,6 +33,7 @@ impl RemoteExecuter for MockExecuter {
             self.git_log(server_index),
             self.git_branch(server_index),
             self.status(server_index),
+            self.releases(server_index),
         ]
     }
 
@@ -104,6 +106,10 @@ impl RemoteExecuter for MockExecuter {
     fn uptime(&self, server_index: usize) -> FileContent {
         self.get_file_content("uptime", server_index)
     }
+
+    fn releases(&self, server_index: usize) -> FileContent {
+        self.get_file_content("releases", server_index)
+    }
 }
 
 struct FileContent {
@@ -133,4 +139,5 @@ struct DisplayInfo {
     git_log: FileContent,
     git_branch: FileContent,
     status: FileContent,
+    releases: FileContent,
 }

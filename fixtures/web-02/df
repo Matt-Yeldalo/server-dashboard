@@ -1,0 +1,4 @@
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        50G   38G   10G  79% /
+tmpfs           3.9G  128M  3.7G   4% /dev/shm
+/dev/sdb1       200G  189G   11G  95% /var/www
