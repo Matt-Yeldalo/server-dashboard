@@ -1,114 +1,95 @@
 include!("remote_executer.rs");
 
-struct MockExecuter {
-    // root_path: String,
+struct MockExecuter {}
+
+impl MockExecuter {
+    fn root(&self) -> &str {
+        "./fixtures/"
+    }
+
+    fn read_file(&self, server_index: usize, deployment: Option<&str>, filename: &str) -> FileContent {
+        let path = match deployment {
+            Some(d) => format!(
+                "{}{}/{}/{}",
+                self.root(),
+                self.server_list()[server_index],
+                d,
+                filename
+            ),
+            None => format!(
+                "{}{}/{}",
+                self.root(),
+                self.server_list()[server_index],
+                filename
+            ),
+        };
+
+        let label = filename.to_string();
+
+        if !std::path::Path::new(&path).exists() {
+            return FileContent {
+                label,
+                content: format!("File not found: {}", path),
+            };
+        }
+
+        match std::fs::read_to_string(&path) {
+            Err(e) => FileContent {
+                label,
+                content: format!("Error reading file: {}", e),
+            },
+            Ok(content) if content.trim().is_empty() => FileContent {
+                label,
+                content: "No content".to_string(),
+            },
+            Ok(content) => FileContent {
+                label,
+                content: content.trim().to_string(),
+            },
+        }
+    }
 }
 
 impl RemoteExecuter for MockExecuter {
     fn server_list(&self) -> Vec<String> {
-        vec!["web-01/".to_string(), "web-02/".to_string(), "web-03/".to_string()]
-    }
-
-    fn root(&self) -> String {
-        "./fixtures/".to_string()
-    }
-
-    fn retrieve_info(&self, server_index: usize) -> Result<DisplayInfo, String> {
-        Ok(DisplayInfo {
-            uptime: self.uptime(server_index),
-            storage: self.storage(server_index),
-            revision: self.revision(server_index),
-            git_log: self.git_log(server_index),
-            git_branch: self.git_branch(server_index),
-            status: self.status(server_index),
-            releases: self.releases(server_index),
-        })
-    }
-
-    fn file_content_list(&self, server_index: usize) -> Vec<FileContent> {
         vec![
-            self.uptime(server_index),
-            self.storage(server_index),
-            self.revision(server_index),
-            self.git_log(server_index),
-            self.git_branch(server_index),
-            self.status(server_index),
-            self.releases(server_index),
+            "web-01".to_string(),
+            "web-02".to_string(),
+            "web-03".to_string(),
         ]
     }
 
-    fn get_file_content(&self, file_path: &str, server_index: usize) -> FileContent {
-        let root_server_check = format!("{}{}", self.root(), self.server_list()[server_index]);
-        if !std::path::Path::new(&root_server_check).exists() {
-            return FileContent {
-                label: file_path.to_string(),
-                content: format!("Server not found: {}", root_server_check),
-            };
-        }
-
-        let full_path = format!(
-            "{}{}{}",
-            self.root(),
-            self.server_list()[server_index],
-            file_path
-        );
-
-        if !std::path::Path::new(&full_path).exists() {
-            return FileContent {
-                label: file_path.to_string(),
-                content: format!("File not found: {}", full_path),
-            };
-        }
-
-        let content = std::fs::read_to_string(full_path);
-        if let Err(e) = content {
-            return FileContent {
-                label: file_path.to_string(),
-                content: format!("Error reading file: {}", e),
-            };
-        }
-
-        let content = content.unwrap();
-
-        if content.is_empty() {
-            return FileContent {
-                label: file_path.to_string(),
-                content: "No content".to_string(),
-            };
-        }
-
-        FileContent {
-            label: file_path.to_string(),
-            content: content.trim().to_string(),
-        }
+    fn server_host_content(&self, server_index: usize) -> Vec<FileContent> {
+        vec![
+            self.read_file(server_index, None, "uptime"),
+            self.read_file(server_index, None, "df"),
+        ]
     }
 
-    fn revision(&self, server_index: usize) -> FileContent {
-        self.get_file_content("REVISION", server_index)
+    fn deployment_list(&self, server_index: usize) -> Vec<String> {
+        let server_path = format!("{}{}", self.root(), self.server_list()[server_index]);
+        let mut dirs: Vec<String> = std::fs::read_dir(&server_path)
+            .map(|rd| {
+                rd.filter_map(|e| e.ok())
+                    .filter(|e| e.path().is_dir())
+                    .map(|e| e.file_name().to_string_lossy().to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
+        dirs.sort();
+        dirs
     }
 
-    fn git_log(&self, server_index: usize) -> FileContent {
-        self.get_file_content("git-log", server_index)
-    }
-
-    fn git_branch(&self, server_index: usize) -> FileContent {
-        self.get_file_content("git-branch", server_index)
-    }
-
-    fn status(&self, server_index: usize) -> FileContent {
-        self.get_file_content("status", server_index)
-    }
-
-    fn storage(&self, server_index: usize) -> FileContent {
-        self.get_file_content("df", server_index)
-    }
-
-    fn uptime(&self, server_index: usize) -> FileContent {
-        self.get_file_content("uptime", server_index)
-    }
-
-    fn releases(&self, server_index: usize) -> FileContent {
-        self.get_file_content("releases", server_index)
+    fn deployment_content(&self, server_index: usize, deployment_index: usize) -> Vec<FileContent> {
+        let deployments = self.deployment_list(server_index);
+        let deployment = &deployments[deployment_index];
+        vec![
+            self.read_file(server_index, Some(deployment), "REVISION"),
+            self.read_file(server_index, Some(deployment), "git-log"),
+            self.read_file(server_index, Some(deployment), "git-branch"),
+            self.read_file(server_index, Some(deployment), "status"),
+            self.read_file(server_index, Some(deployment), "releases"),
+        ]
     }
 }
 
@@ -130,14 +111,4 @@ impl std::fmt::Display for FileContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}: {}", self.label, self.content)
     }
-}
-
-struct DisplayInfo {
-    uptime: FileContent,
-    storage: FileContent,
-    revision: FileContent,
-    git_log: FileContent,
-    git_branch: FileContent,
-    status: FileContent,
-    releases: FileContent,
 }
